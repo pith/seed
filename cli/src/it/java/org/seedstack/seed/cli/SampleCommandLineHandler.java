@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class SampleCommandLineHandler implements CommandLineHandler {
     static boolean called = false;
 
-    @CliOption(name = "a")
+    @CliOption(name = "a", description = "The option a")
     private Boolean hasA;
 
     @CliOption(name = "b", valueCount = 1)

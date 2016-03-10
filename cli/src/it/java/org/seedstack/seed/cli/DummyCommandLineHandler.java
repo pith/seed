@@ -9,11 +9,11 @@ package org.seedstack.seed.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@CliCommand("dummy")
+@CliCommand(value = "dummy", description = "Dummy command")
 public class DummyCommandLineHandler implements CommandLineHandler {
     static boolean called = false;
 
-    @CliOption(name = "o", longName = "option", valueCount = 1)
+    @CliOption(name = "o", longName = "option", valueCount = 1, description = "The super useful option")
     private String option;
 
     @CliArgs
