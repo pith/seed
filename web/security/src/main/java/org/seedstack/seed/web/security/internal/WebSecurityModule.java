@@ -59,18 +59,21 @@ class WebSecurityModule extends ShiroWebModule {
         // Seed filters
         DEFAULT_FILTERS.put("xsrf", Key.get(AntiXsrfFilter.class));
         DEFAULT_FILTERS.put("cert", Key.get(X509CertificateFilter.class));
+        DEFAULT_FILTERS.put("form", Key.get(FormAuthenticationFilter.class));
     }
 
     private final String applicationName;
     private final Props props;
     private final Collection<Class<? extends Filter>> customFilters;
+    private final Class<? extends UserTokenRepository> userTokenRepositoryClass;
     private final SecurityGuiceConfigurer securityGuiceConfigurer;
 
-    WebSecurityModule(ServletContext servletContext, Props props, Collection<Class<? extends Filter>> customFilters, String applicationName, SecurityGuiceConfigurer securityGuiceConfigurer) {
+    WebSecurityModule(ServletContext servletContext, Props props, Collection<Class<? extends Filter>> customFilters, String applicationName, Class<? extends UserTokenRepository> userTokenRepositoryClass, SecurityGuiceConfigurer securityGuiceConfigurer) {
         super(servletContext);
         this.props = props;
         this.customFilters = customFilters;
         this.applicationName = applicationName;
+        this.userTokenRepositoryClass = userTokenRepositoryClass;
         this.securityGuiceConfigurer = securityGuiceConfigurer;
     }
 
@@ -94,6 +97,9 @@ class WebSecurityModule extends ShiroWebModule {
         // Bind Seed filters
         bind(AntiXsrfFilter.class);
         bind(X509CertificateFilter.class);
+        bind(FormAuthenticationFilter.class);
+
+        bind(UserTokenRepository.class).to(userTokenRepositoryClass);
 
         // Bind custom filters not extending PathMatchingFilter as Shiro doesn't do it
         for (Class<? extends Filter> customFilter : customFilters) {

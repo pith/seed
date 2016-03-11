@@ -45,21 +45,32 @@ public class WebSecurityProvider implements SecurityProvider {
 
     private Props props;
 
+    private Class<?> userTokenRepositoryClass;
+    private WebSecurityConfig webSecurityConfig;
     private Configuration securityConfiguration;
 
     @SuppressWarnings("unchecked")
     @Override
     public void init(InitContext initContext) {
         ApplicationPlugin applicationPlugin = initContext.dependency(ApplicationPlugin.class);
+        securityConfiguration = applicationPlugin.getConfiguration().subset(SecurityPlugin.SECURITY_PREFIX);
+        webSecurityConfig = new WebSecurityConfig();
+        webSecurityConfig.init(applicationPlugin.getConfiguration());
 
         props = applicationPlugin.getProps();
         applicationId = applicationPlugin.getApplication().getId();
-        securityConfiguration = applicationPlugin.getConfiguration().subset(SecurityPlugin.SECURITY_PREFIX);
         for (Class<?> filterClass : initContext.scannedClassesByAnnotationClass().get(SecurityFilter.class)) {
             if (Filter.class.isAssignableFrom(filterClass)) {
                 scannedFilters.add((Class<? extends Filter>) filterClass);
             } else {
                 throw new PluginException("Annotated class " + filterClass.getName() + " must implement Filter to be used in a filter chain");
+            }
+        }
+
+        Collection<Class<?>> userTokenRepositoryImplClasses = initContext.scannedSubTypesByParentClass().get(UserTokenRepository.class);
+        for (Class<?> userTokenRepositoryImplClass : userTokenRepositoryImplClasses) {
+            if (!webSecurityConfig.getUserTokenRepositoryClass().equals(userTokenRepositoryImplClass)) {
+                userTokenRepositoryClass = userTokenRepositoryImplClass;
             }
         }
     }
@@ -71,14 +82,15 @@ public class WebSecurityProvider implements SecurityProvider {
 
     @Override
     public void classpathScanRequests(ClasspathScanRequestBuilder classpathScanRequestBuilder) {
-        classpathScanRequestBuilder.annotationType(SecurityFilter.class);
+        classpathScanRequestBuilder.annotationType(SecurityFilter.class).subtypeOf(UserTokenRepository.class);
     }
 
     @Override
     public Module provideMainSecurityModule() {
         if (servletContext != null) {
             return Modules.combine(
-                    new WebSecurityModule(servletContext, props, scannedFilters, applicationId, new SecurityGuiceConfigurer(securityConfiguration)),
+                    new WebSecurityModule(servletContext, props, scannedFilters, applicationId, webSecurityConfig.getUserTokenRepositoryClass(),
+                            new SecurityGuiceConfigurer(securityConfiguration)),
                     ShiroWebModule.guiceFilterModule()
             );
         } else {
