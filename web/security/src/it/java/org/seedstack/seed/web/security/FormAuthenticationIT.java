@@ -75,4 +75,25 @@ public class FormAuthenticationIT extends AbstractSeedWebIT {
                 .when()
                     .get(baseURL.toString() + PATH);
     }
+
+    @Test
+    @RunAsClient
+    public void jwt() throws Exception {
+        Response response = expect()
+                .statusCode(200)
+                .given()
+                .param("username", "john")
+                .param("password", "passw0rd")
+                .when()
+                .get(baseURL.toString() + "login");
+
+        String jwt = response.asString();
+
+        expect()
+                .statusCode(200)
+                .given()
+                    .header("Authentication", "Bearer " + jwt)
+                .when()
+                    .get(baseURL.toString() + PATH);
+    }
 }

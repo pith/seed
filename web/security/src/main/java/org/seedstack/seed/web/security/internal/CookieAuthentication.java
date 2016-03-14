@@ -1,12 +1,16 @@
 package org.seedstack.seed.web.security.internal;
 
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.impl.crypto.MacProvider;
+
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import java.security.Key;
 import java.security.SignatureException;
 import java.util.Date;
 
 public class CookieAuthentication {
-
     public static final String SEPARATOR = ":";
 
     private final String cookieName;
@@ -15,8 +19,9 @@ public class CookieAuthentication {
         this.cookieName = cookieName;
     }
 
-    public Cookie createCookie(long timestamp, String token) {
-        Cookie cookie = new Cookie(cookieName, timestamp + SEPARATOR + signTimestampWithToken(timestamp, token));
+    public Cookie createCookie(Object principal) {
+        long timestamp = new Date().getTime();
+        Cookie cookie = new Cookie(cookieName, new CookieValue(principal.toString(), timestamp).toString());
         // TODO if https is enabled (with undertow for instance), enable secure cookie
         cookie.setHttpOnly(true);
         cookie.setPath("/");
@@ -24,25 +29,29 @@ public class CookieAuthentication {
         return cookie;
     }
 
-    private String signTimestampWithToken(long timestamp, String token) {
-        try {
-            return Signature.hmac(token, String.valueOf(timestamp));
-        } catch (SignatureException e) {
-            throw new org.seedstack.seed.security.AuthenticationException(e.getMessage(), e);
-        }
-    }
-
-    public boolean hasValidCookie(HttpServletRequest httpServletRequest, String token) {
+    public boolean hasValidCookie(HttpServletRequest httpServletRequest) {
         Cookie cookie = getAuthCookie(httpServletRequest);
         if (cookie != null) {
-            String[] splitValue = cookie.getValue().split(SEPARATOR, 2);
-            if (splitValue.length == 2) {
-                long timestamp = new Date(Long.valueOf(splitValue[0])).getTime();
-                String signedToken = splitValue[1];
-                return signedToken.equals(signTimestampWithToken(timestamp, token));
+            try {
+                new CookieValue(cookie.getValue());
+                return true;
+            } catch (IllegalArgumentException e) {
+                return false;
             }
         }
         return false;
+    }
+
+    public String getPrincipal(HttpServletRequest httpServletRequest) {
+        Cookie cookie = getAuthCookie(httpServletRequest);
+        if (cookie != null) {
+            try {
+                return new CookieValue(cookie.getValue()).principal;
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private Cookie getAuthCookie(HttpServletRequest httpServletRequest) {
@@ -54,5 +63,52 @@ public class CookieAuthentication {
             }
         }
         return null;
+    }
+
+    class CookieValue {
+        private static final String SECURE_TOKEN = "secureToken";
+
+        private String principal;
+        private long timestamp;
+
+        public CookieValue(String principal, long timestamp) {
+            this.principal = principal;
+            this.timestamp = timestamp;
+        }
+
+        public CookieValue(String value) {
+            String[] splitValue = value.split(SEPARATOR, 3);
+            if (splitValue.length == 3) {
+                principal = splitValue[0];
+                timestamp = new Date(Long.valueOf(splitValue[1])).getTime();
+                validateSignature(splitValue[2]);
+            }
+        }
+
+        public void test(){
+            Key key = MacProvider.generateKey();
+
+            String s = Jwts.builder().setSubject("Joe").signWith(SignatureAlgorithm.HS512, key).compact();
+        }
+
+        private void validateSignature(String signature) {
+            if (!signature.equals(signature())) {
+                throw new IllegalArgumentException();
+            }
+        }
+
+        private String signature() {
+            String dataToSign = principal + String.valueOf(timestamp);
+            try {
+                return Signature.hmac(SECURE_TOKEN, dataToSign);
+            } catch (SignatureException e) {
+                throw new org.seedstack.seed.security.AuthenticationException(e.getMessage(), e);
+            }
+        }
+
+        @Override
+        public String toString() {
+            return principal + SEPARATOR + timestamp + SEPARATOR + signature();
+        }
     }
 }

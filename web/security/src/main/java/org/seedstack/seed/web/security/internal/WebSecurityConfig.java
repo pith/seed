@@ -21,7 +21,7 @@ public class WebSecurityConfig {
 
     @SuppressWarnings("unchecked")
     private void setUserTokenRepository(Configuration securityConfiguration) {
-        String repositoryClassName = securityConfiguration.getString("form.user-token-repository", UserTokenInmemoryRepository.class.getCanonicalName());
+        String repositoryClassName = securityConfiguration.getString("form.user-token-repository", UserTokenInMemoryRepository.class.getCanonicalName());
         Maybe<Class<?>> repositoryClass = SeedReflectionUtils.forName(repositoryClassName);
         if (repositoryClass.isPresent() && UserTokenRepository.class.isAssignableFrom(repositoryClass.get())) {
             userTokenRepository = (Class<? extends UserTokenRepository>) repositoryClass.get();

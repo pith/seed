@@ -10,4 +10,4 @@
 john = passw0rd
 
 [org.seedstack.seed.security.urls]
-/api/** = form
+/** = form

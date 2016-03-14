@@ -87,9 +87,7 @@ public class ConfigurationRealm implements Realm {
                 user.password = "";
             } else {
                 user.password = values[0];
-                for (int i = 1; i < values.length; i++) {
-                    user.roles.add(values[i]);
-                }
+                user.roles.addAll(Arrays.asList(values).subList(1, values.length));
             }
             users.add(user);
         }

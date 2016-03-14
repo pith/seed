@@ -36,12 +36,19 @@
             <version>${shiro.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+            <version>0.6.0</version>
+        </dependency>
+
+        <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
             <version>${javax.servlet-api.version}</version>
             <scope>provided</scope>
         </dependency>
 
+        <!-- TEST -->
         <dependency>
             <groupId>org.seedstack.poms</groupId>
             <artifactId>arquillian-composite</artifactId>

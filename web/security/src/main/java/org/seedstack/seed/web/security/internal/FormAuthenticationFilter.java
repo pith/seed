@@ -7,11 +7,18 @@
  */
 package org.seedstack.seed.web.security.internal;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureException;
 import org.apache.commons.configuration.Configuration;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
+import org.apache.shiro.subject.PrincipalCollection;
+import org.apache.shiro.subject.Subject;
+import org.apache.shiro.util.ThreadContext;
 import org.apache.shiro.web.servlet.AdviceFilter;
 import org.apache.shiro.web.util.WebUtils;
 import org.seedstack.seed.Application;
@@ -24,7 +31,6 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Date;
 
 class FormAuthenticationFilter extends AdviceFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(FormAuthenticationFilter.class);
@@ -39,7 +45,6 @@ class FormAuthenticationFilter extends AdviceFilter {
     private String usernameParam;
     private String passwordParam;
     private String rememberMeParam;
-    private String cookieName;
     private final CookieAuthentication cookieAuthentication;
     private final UserTokenRepository userTokenRepository;
 
@@ -49,7 +54,7 @@ class FormAuthenticationFilter extends AdviceFilter {
         this.usernameParam = configuration.getString(DEFAULT_USERNAME_PARAM, DEFAULT_USERNAME_PARAM);
         this.passwordParam = configuration.getString(DEFAULT_PASSWORD_PARAM, DEFAULT_PASSWORD_PARAM);
         this.rememberMeParam = configuration.getString(DEFAULT_REMEMBER_ME_PARAM, DEFAULT_REMEMBER_ME_PARAM);
-        this.cookieName = configuration.getString(COOKIE_NAME, DEFAULT_COOKIE_NAME);
+        String cookieName = configuration.getString(COOKIE_NAME, DEFAULT_COOKIE_NAME);
         this.userTokenRepository = userTokenRepository;
         /*
          TODO: add the user to the user to the cookie and validate the token for the given user
@@ -62,20 +67,40 @@ class FormAuthenticationFilter extends AdviceFilter {
     protected boolean preHandle(ServletRequest request, ServletResponse response) throws Exception {
         HttpServletRequest httpServletRequest = (HttpServletRequest) request;
         HttpServletResponse httpServletResponse = (HttpServletResponse) response;
-        if (cookieAuthentication.hasValidCookie(httpServletRequest, "supersecuretoken")) {
-            return true;
+        return jwtAuthentication(httpServletRequest) || formAuthentication(httpServletRequest, httpServletResponse);
+    }
+
+    private boolean jwtAuthentication(HttpServletRequest httpServletRequest) {
+        String authenticationHeader = httpServletRequest.getHeader("Authentication");
+        if (authenticationHeader != null && authenticationHeader.startsWith("Bearer ")) {
+            String jwt = authenticationHeader.substring("Bearer ".length());
+            try {
+                Jws<Claims> claimsJws = Jwts.parser().setSigningKey(LoginServlet.SECRET_KEY).parseClaimsJws(jwt);
+                String principal = claimsJws.getBody().getSubject();
+                PrincipalCollection principalCollection = userTokenRepository.findPrincipal(principal);
+                Subject subject = new Subject.Builder().authenticated(true).principals(principalCollection).buildSubject();
+                ThreadContext.bind(subject);
+                //OK, we can trust this JWT
+                return true;
+            } catch (SignatureException e) {
+                return false;
+            }
         }
+        return false;
+    }
+
+    private boolean formAuthentication(HttpServletRequest request, HttpServletResponse httpServletResponse) {
         try {
-            SecurityUtils.getSubject().login(createUsernamePasswordToken(request));
-            httpServletResponse.addCookie(cookieAuthentication.createCookie(new Date().getTime(), "supersecuretoken"));
+            Subject subject = SecurityUtils.getSubject();
+            subject.login(createUsernamePasswordToken(request));
+            return true;
         } catch (AuthenticationException e) {
             return denyRequest(request, httpServletResponse);
         }
-        return true;
     }
 
-    private boolean denyRequest(ServletRequest request, HttpServletResponse httpServletResponse) {
-        LOGGER.trace("Access denied on " + ((HttpServletRequest) request).getRequestURL() + " for " + request.getRemoteAddr());
+    private boolean denyRequest(HttpServletRequest request, HttpServletResponse httpServletResponse) {
+        LOGGER.trace("Access denied on " + request.getRequestURL() + " for " + request.getRemoteAddr());
         httpServletResponse.setStatus(401);
         return false;
     }

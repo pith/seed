@@ -1,12 +1,14 @@
 package org.seedstack.seed.web.security.internal;
 
+import org.apache.shiro.subject.PrincipalCollection;
+
 public interface UserTokenRepository {
 
-    void registerToken(String user, String token);
+    String registerToken(Object principal, PrincipalCollection principalCollection);
 
-    String findToken(String user);
+    PrincipalCollection findPrincipal(String user);
 
-    void replaceToken(String user, String token);
+    void replaceToken(String principal, PrincipalCollection principalCollection);
 
     void removeToken(String user);
 }

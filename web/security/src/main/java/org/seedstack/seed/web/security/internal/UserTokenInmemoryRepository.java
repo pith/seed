@@ -1,29 +1,48 @@
 package org.seedstack.seed.web.security.internal;
 
+import jodd.util.Base64;
+import org.apache.shiro.subject.PrincipalCollection;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public class UserTokenInmemoryRepository implements UserTokenRepository {
+public class UserTokenInMemoryRepository implements UserTokenRepository {
 
-    private ConcurrentMap<String, String> userTokens = new ConcurrentHashMap<String, String>();
+    private static ConcurrentMap<String, PrincipalCollection> userTokens = new ConcurrentHashMap<String, PrincipalCollection>();
 
     @Override
-    public void registerToken(String user, String token) {
-        userTokens.put(user, token);
+    public String registerToken(Object principal, PrincipalCollection principalCollection) {
+        String serializePrincipal = serializePrincipal(principal);
+        userTokens.put(serializePrincipal, principalCollection);
+        return serializePrincipal;
+    }
+
+    private String serializePrincipal(Object principal) {
+        try {
+            ByteArrayOutputStream serializedPrincipal = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(serializedPrincipal);
+            objectOutputStream.writeObject(principal);
+            return Base64.encodeToString(serializedPrincipal.toByteArray());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override
-    public String findToken(String user) {
-        return userTokens.get(user);
+    public PrincipalCollection findPrincipal(String principal) {
+        return userTokens.get(principal);
     }
 
     @Override
-    public void replaceToken(String user, String token) {
-        userTokens.replace(user, token);
+    public void replaceToken(String principal, PrincipalCollection principalCollection) {
+        userTokens.replace(principal, principalCollection);
     }
 
     @Override
-    public void removeToken(String user) {
-        userTokens.remove(user);
+    public void removeToken(String principal) {
+        userTokens.remove(principal);
     }
 }
