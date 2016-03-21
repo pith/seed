@@ -44,10 +44,7 @@ class CoreDiagnosticCollector implements DiagnosticInfoCollector {
         try {
             return new HashSet<URL>((Set<URL>) SeedReflectionUtils.invokeMethod(
                     SeedReflectionUtils.getFieldValue(
-                            SeedReflectionUtils.getFieldValue(initContext,
-                                    "requestHandler"),
-                            "classpathScanner"),
-                    "computeUrls"));
+                            SeedReflectionUtils.getFieldValue(initContext, "requestHandler"), "classpathScanner"), "findClasspathUrls"));
         } catch (Exception e) {
             SeedLoggingUtils.logWarningWithDebugDetails(LOGGER, e, "Unable to collect scanned classpath");
         }

@@ -7,9 +7,11 @@
  */
 package org.seedstack.seed;
 
+import com.google.common.collect.Lists;
 import com.google.inject.ConfigurationException;
 import com.google.inject.Injector;
 import io.nuun.kernel.api.Kernel;
+import io.nuun.kernel.api.config.KernelOptions;
 import org.assertj.core.api.Assertions;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -28,18 +30,21 @@ public class IgnoreIT {
 
     @org.seedstack.seed.Ignore
     @Scan
-    static class IgnoredClass {
+    private static class IgnoredClass {
     }
 
     @Scan
-    static class ScannedClass {
+    private static class ScannedClass {
     }
 
     @interface Scan {}
 
     @BeforeClass
     public static void setUp() throws Exception {
-        kernel = createKernel(newKernelConfiguration().withoutSpiPluginsLoader().addPlugin(IgnorePlugin.class));
+        kernel = createKernel(newKernelConfiguration()
+                .option(KernelOptions.SCAN_PLUGIN, false)
+                .option(KernelOptions.ROOT_PACKAGES, Lists.newArrayList("org.seedstack.seed"))
+                .addPlugin(IgnorePlugin.class));
         kernel.init();
         kernel.start();
         injector = kernel.objectGraph().as(Injector.class);
